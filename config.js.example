@@ -1,0 +1,6 @@
+const DISCORD_GUILD = '123456789123456789'; // The Discord server to monitor
+const ISLE_SERVER_PREFIX = 'Cool Server '; // All servers start with the same name
+const ISLE_SERVER_LIST = [
+    '1',
+    '2'
+]; // List of server suffixes after the prefix
