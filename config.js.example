@@ -1,6 +1,22 @@
-const DISCORD_GUILD = '123456789123456789'; // The Discord server to monitor
-const ISLE_SERVER_PREFIX = 'Cool Server '; // All servers start with the same name
-const ISLE_SERVER_LIST = [
-    '1',
-    '2'
-]; // List of server suffixes after the prefix
+module.exports = {
+    DISCORD: {
+        GUILD: '', // The Discord server to monitor
+        MEMBER_PATH: './storage/discord/members/',
+    },
+    THE_ISLE:{
+        SERVER_PREFIX: '', // All servers start with the same name
+        SERVER_LIST: [ // TODO: Må sikres at dette er rett metode
+            ''
+        ],
+        INJECTION_TEMPLATE_PATH: './templates/dinosaurs/injection/',
+    },
+    FTP: {
+        PLAYER_PROFILE_PATH: '/players/',
+        PLAYER_PROFILE_CACHE_PATH: './.cache/players/',
+        SECURE: true,
+        ONLY_TRUSTED_CERTIFICATES: false
+    },
+    STEAM: {
+        ID_REGEX: '^[0-9]{17}$',
+    },
+};

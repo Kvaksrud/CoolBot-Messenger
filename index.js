@@ -1,4 +1,14 @@
 /*
+ *
+ *  BOT written by Patrick Kvaksrud (patrick@kvaksrud.no)
+ *  https://github.com/Kvaksrud/CoolBot
+ *  DOB: 2021-10-13
+ *  Description: This bot was created to support the TCGC community with a fresh and uniqueue bot for supporting Discord and The Isle
+ *  Licence: MIT
+ * 
+ */
+
+/*
  * Config
  */
 require('dotenv').config(); // Include environment variables
@@ -29,6 +39,10 @@ bot.on('ready', () => {
     console.log('bot logged in to Discord')
 });
 
+// Commands
+const ftp_commands = require('./library/ftp.js')
+const templates = require('./library/dinoTemplates.js');
+
 /*
  * Functions
  */
@@ -42,6 +56,10 @@ function getCurrentDino(SteamID){
     const dinoFTPPath = config.FTP.PLAYER_PROFILE_PATH + SteamID + '.json'
     const dinoCachePath = config.FTP.PLAYER_PROFILE_CACHE_PATH + SteamID + '.json';
 
+    console.log(dinoFTPPath);
+    console.log(dinoCachePath);
+
+    const ftp = require('ftp');
     const c = new ftp();
     c.on('ready', function() {
         c.get(dinoFTPPath, function(err, stream) {
@@ -50,7 +68,7 @@ function getCurrentDino(SteamID){
               c.end(); // Close FTP
 
               let content = fs.readFileSync(dinoCachePath);
-              fs.unlinkSync(dinoCachePath); // Delete file from cache
+              //fs.unlinkSync(dinoCachePath); // Delete file from cache
               return JSON.parse(content);
           });
           stream.pipe(fs.createWriteStream(dinoCachePath));
@@ -67,20 +85,24 @@ function getCurrentDino(SteamID){
 }
 
 function getFTPFile(ftpFilePath,localFilePath,JSONOutput = false){
-    createFoldersRecursive(localFilePath);
-    deleteFileIfExists(localFilePath);
+    console.log('createfolder',createFoldersRecursive(localFilePath));
+    console.log('deleteIfExist',deleteFileIfExists(localFilePath));
 
     const c = new ftp();
     c.on('ready', function() {
+        console.log('ftp ready');
         c.get(ftpFilePath, function(err, stream) {
+            console.log('ftp get');
             if (err){
                 console.log(err);
                 return; // Null if file does not exist
             }
             stream.once('close', function() {
                 c.end(); // Close FTP
+                console.log('output',JSONOutput)
                 if(JSONOutput === true){
                     const jsonContent = readJSONFile(localFilePath);
+                    console.log('jsonContent',jsonContent);
                     deleteFileIfExists(localFilePath);
                     return jsonContent;
                 }
@@ -121,14 +143,7 @@ function writeJSONFile(filePath,object){
 }
 
 function createFoldersRecursive(filePath){
-    try {
-        const dir = path.dirname(filePath);
-    } catch(err){
-        console.log('Failed getting file dir name');
-        console.error(err);
-        return;
-    }
-    
+    const dir = path.dirname(filePath);
     console.log(filePath,dir);
 
     if (!fs.existsSync(dir)){
@@ -155,6 +170,12 @@ function getRegisteredUser(userId){
     return userData;
 }
 
+function replyNotRegistered(message){
+    message.reply('You have not registered your Steam ID');
+    return;
+}
+
+
 /*
  * Commands
  */
@@ -171,10 +192,13 @@ bot.on('messageCreate', async message => {
             return;
         }
 
-        console.log(`New message in channel ${channel.name} on server ${guild.name}`); // Debug
+        console.log(`New message in channel ${channel.name} on server ${guild.name} from ${member.user.username}`);
         const args = message.content.slice(prefix.length).trim().split(/ +/);
         const command = args.shift().toLowerCase();
         console.log(command,args);
+
+        const member_data = getRegisteredUser(member.id);
+        //console.log('Member',member,member_data);
 
         if(channel.name === 'bot-test'){
             if(command === 'knockknock'){
@@ -185,52 +209,60 @@ bot.on('messageCreate', async message => {
             }
         }
 
-        // Get dino info
-        if(message.content.startsWith('!current ') === true){
-            const command = message.content.split(' ');
-            
-        }
-
-        if(message.content.startsWith('!inject ') === true){ // !inject 123456789 Trike
-            const command = message.content.split(' ');
-            var c = new ftp();
-            
-            c.on('ready', function() {
-              c.get('/players/' + command[1] + '.json', function(err, stream) {
-                if (err) throw err;
-                stream.once('close', function() {
-                    c.end();
-
-                    // Output. Must be a better way?
-                    const serverContent = fs.readFileSync(config.FTP.PLAYER_PROFILE_CACHE_PATH + command[1] + '.json');
-                    const jsonServerContent = JSON.parse(serverContent);
-                    console.log('Current dino',jsonServerContent);
-
-                    const templateContent = fs.readFileSync(config.THE_ISLE.INJECTION_TEMPLATE_PATH + 'trike.json');
-                    const jsonTemplateContent = JSON.parse(templateContent);
-                    console.log('Template',jsonTemplateContent);
-                    
-                    const injectedDino = json_merger.merge(JSON.parse(serverContent),JSON.parse(templateContent));
-                    console.log('Inject',injectedDino);
-                    
-                    message.reply('Old dino: ' + jsonServerContent['CharacterClass'] + ' / New dino: ' + injectedDino['CharacterClass']);
-                    fs.unlinkSync(config.FTP.PLAYER_PROFILE_CACHE_PATH + command[1] + '.json');
+        // !dino
+        if(command === 'dino'){
+            if(isRegistered(member.id) === false){
+                replyNotRegistered(message);
+                return;
+            }
+            if(args.length === 0){ // !dino (no args)
+                ftp_commands.currentPlayerData(member_data.steam_id).then((result) => {
+                    message.reply('```Class: '+result.CharacterClass+'\nGrowth: '+result.Growth+'\nGender: '+ (result.bGender === true ? 'Female' : 'Male') +'```');
+                }).catch((err) => {
+                    console.error(err);
                 });
-                stream.pipe(fs.createWriteStream(config.FTP.PLAYER_PROFILE_CACHE_PATH + command[1] + '.json'));
-              });
-            });
-            // connect to localhost:21 as anonymous
-            c.connect({
-                host: process.env.FTP_HOST,
-                user: process.env.FTP_USER,
-                port: process.env.FTP_PORT,
-                password: process.env.FTP_PASSWORD,
-                secure: config.FTP.SECURE,
-                secureOptions: { rejectUnauthorized: config.FTP.ONLY_TRUSTED_CERTIFICATES }
-            });
+                return;
+            } else if(args[0] === 'inject'){ // !dino inject <dino> <gender>
+                if(templates.InjectionNames.includes(args[1]) !== true){
+                    message.reply('Invalid dino selection.\n```Valid selection: ' + templates.InjectionNames.sort().join(', ') + '\nExample: !dino inject trike f```');
+                    return;
+                }
+                if(args[2] !== 'f' && args[2] !== 'm'){
+                    message.reply('You must select a gender.\n```Valid selection: m, f\nExample: !dino inject trike f```');
+                    return;
+                }
+
+                const currentPlayer = await ftp_commands.currentPlayerData(member_data.steam_id).then((result) => {
+                    return result;
+                }).catch((err) => {
+                    console.error(err);
+                    message.reply('I\'m having issues trying to figure out your current player configuration. Please try again later.');
+                    return;
+                });
+                
+                //console.log('currentPlayer = ',currentPlayer);
+                const templateDino = templates.generate(args[1],args[2],currentPlayer);
+                //console.log('templateDino = ',templateDino);
+                const injection = await ftp_commands.injectPlayerData(member_data.steam_id,templateDino).then((result) => {
+                    return result;
+                }).catch((err) => {
+                    console.error(err);
+                    message.reply('I\'m having issues trying to inject your dinosaur. Please try again later.');
+                    return;
+                })
+
+                if(injection === true){
+                    message.reply('Your dino has been successfully injected!');
+                    return;
+                }
+                
+            } else { // Invalid command
+                message.reply('Invalid command');
+            }
+            return;
         }
 
-        if (command === 'register') {
+        if (command === 'register') { // TODO: Move to library and minimize code
             const SteamID = args[0];
             
             console.log(SteamID,config.STEAM.ID_REGEX,regexp_steam_id.test(SteamID))
@@ -275,19 +307,22 @@ bot.on('messageCreate', async message => {
             message.reply('Your Steam ID was successfully registered!');
         }
 
-        if (message.content === "!me") {
-            console.log(message);
-            console.log(message.member);
-            message.reply(JSON.stringify(message.member));
-        }
+        /* dev commands */
+        if(hasDiscordRole(message,'Developer')){
+            if (command === "me") {
+                console.log(message);
+                console.log(message.member);
+                message.reply(JSON.stringify(message.member));
+            }
 
-        if (message.content === "!ping") {
-            console.log("ping");
-            console.log(message);
-            console.log(hasDiscordRole(message,'The Isle'))
-            message.reply("pong");
-            return;
-          }
+            if (command === "ping") {
+                console.log("ping");
+                console.log(message);
+                console.log(hasDiscordRole(message,'The Isle'))
+                message.reply("pong");
+                return;
+            }
+        }
         // End prefix commands
     }
 });
