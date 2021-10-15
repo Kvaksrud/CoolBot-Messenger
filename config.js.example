@@ -1,0 +1,22 @@
+module.exports = {
+    DISCORD: {
+        GUILD: '', // The Discord server to monitor
+        MEMBER_PATH: './storage/discord/members/',
+    },
+    THE_ISLE:{
+        SERVER_PREFIX: '', // All servers start with the same name
+        SERVER_LIST: [ // TODO: Må sikres at dette er rett metode
+            ''
+        ],
+        INJECTION_TEMPLATE_PATH: './templates/dinosaurs/injection/',
+    },
+    FTP: {
+        PLAYER_PROFILE_PATH: '/players/',
+        PLAYER_PROFILE_CACHE_PATH: './.cache/players/',
+        SECURE: true,
+        ONLY_TRUSTED_CERTIFICATES: false
+    },
+    STEAM: {
+        ID_REGEX: '^[0-9]{17}$',
+    },
+};
