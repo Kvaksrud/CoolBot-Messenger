@@ -40,8 +40,9 @@ bot.on('ready', () => {
 });
 
 // Commands
-const ftp_commands = require('./library/ftp.js')
+const ftp_commands = require('./library/ftp.js');
 const templates = require('./library/dinoTemplates.js');
+const backend = require('./library/backend.js');
 
 /*
  * Functions
@@ -175,6 +176,7 @@ function replyNotRegistered(message){
     return;
 }
 
+const replyUnableToConnectToBackend = 'I\'m sorry for the inconvenience but it seems I currently cannot connect to the mother ship. Please try again later.';
 
 /*
  * Commands
@@ -186,39 +188,45 @@ bot.on('messageCreate', async message => {
     const {member} = message; // Set member var
 
     if(message.content[0] === prefix){
-        if(config.DISCORD.GUILD !== guild.id.toString()){
-            console.log(config.DISCORD_GUILD);
-            console.log(guild ? `Guild not whitelisted: ${guild.name} (${guild.id})` : "New private message");
+        if(config.DISCORD.GUILDS.includes(guild.id.toString()) === false){
+            console.log(guild ? `Guild is not whitelisted: ${guild.name} (${guild.id})` : "New private message");
             return;
         }
 
         console.log(`New message in channel ${channel.name} on server ${guild.name} from ${member.user.username}`);
-        const args = message.content.slice(prefix.length).trim().split(/ +/);
-        const command = args.shift().toLowerCase();
+        const args = message.content.toLowerCase().slice(prefix.length).trim().split(/ +/);
+        const command = args.shift();
         console.log(command,args);
 
-        const member_data = getRegisteredUser(member.id);
+        //const member_data = getRegisteredUser(member.id);
         //console.log('Member',member,member_data);
-
-        if(channel.name === 'bot-test'){
-            if(command === 'knockknock'){
-                const attachment = new MessageAttachment('https://static.posters.cz/image/1300/plakater/breaking-bad-i-am-the-one-who-knocks-i15742.jpg');
-                message.reply({files: [attachment]})
-                    .then(() => console.log(`Replied to message "${message.content}"`))
-                    .catch(console.error);
-            }
-        }
 
         // !dino
         if(command === 'dino'){
-            if(isRegistered(member.id) === false){
-                replyNotRegistered(message);
+            let registrationStatus = await backend.getRegistration(guild.id,member.id).catch((err) =>{
+                message.reply(replyUnableToConnectToBackend);
+                return null;
+            });
+
+            console.log(registrationStatus);
+            if(registrationStatus.success !== true){
+                console.log(registrationStatus);
+                message.reply('You are not registered');
                 return;
             }
             if(args.length === 0){ // !dino (no args)
-                ftp_commands.currentPlayerData(member_data.steam_id).then((result) => {
-                    message.reply('```Class: '+result.CharacterClass+'\nGrowth: '+result.Growth+'\nGender: '+ (result.bGender === true ? 'Female' : 'Male') +'```');
+                let reply;
+                await message.reply('Please wait while I check the server...').then((sentReply) => { reply = sentReply; });
+                //console.log('Reply: ',reply);
+                console.log(registrationStatus.data.item.steam_id);
+                ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).then((result) => {
+                    console.log(result);
+                    reply.edit('```Class: '+result.CharacterClass+'\nGrowth: '+result.Growth+'\nGender: '+ (result.bGender === true ? 'Female' : 'Male') +'```');
                 }).catch((err) => {
+                    reply.edit('i failed u').catch((errD) => {
+                        console.log('Discord Error:')
+                        console.error(errD);
+                    });
                     console.error(err);
                 });
                 return;
@@ -232,27 +240,34 @@ bot.on('messageCreate', async message => {
                     return;
                 }
 
-                const currentPlayer = await ftp_commands.currentPlayerData(member_data.steam_id).then((result) => {
+                let reply;
+                await message.reply('Please wait while I do some magic! Cast time is a little long, hold on :)').then((sentReply) => { reply = sentReply; });
+                const currentPlayer = await ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).then((result) => {
                     return result;
                 }).catch((err) => {
                     console.error(err);
-                    message.reply('I\'m having issues trying to figure out your current player configuration. Please try again later.');
+                    reply.edit('I\'m having issues trying to figure out your current player configuration. Please try again later.');
                     return;
                 });
                 
-                //console.log('currentPlayer = ',currentPlayer);
-                const templateDino = templates.generate(args[1],args[2],currentPlayer);
-                //console.log('templateDino = ',templateDino);
-                const injection = await ftp_commands.injectPlayerData(member_data.steam_id,templateDino).then((result) => {
+                console.log('currentPlayer = ',currentPlayer);
+                const templatedDino = templates.generate(args[1],args[2],currentPlayer);
+                console.log('templateDino = ',templatedDino);
+
+                const injection = await ftp_commands.injectPlayerData(registrationStatus.data.item.steam_id,templatedDino).then((result) => {
                     return result;
                 }).catch((err) => {
                     console.error(err);
-                    message.reply('I\'m having issues trying to inject your dinosaur. Please try again later.');
+                    reply.edit('I\'m having issues trying to inject your dinosaur. Please try again later.');
                     return;
                 })
 
                 if(injection === true){
-                    message.reply('Your dino has been successfully injected!');
+                    reply.edit('Your dino has been successfully injected! You can now log in to the server.');
+                    await backend.storeCharacterSheet(guild.id,member.id,templatedDino,'injection').catch((err) => {
+                        console.log('Failed to log injection')
+                        console.error(err);
+                    })
                     return;
                 }
                 
@@ -264,7 +279,6 @@ bot.on('messageCreate', async message => {
 
         if (command === 'register') { // TODO: Move to library and minimize code
             const SteamID = args[0];
-            
             console.log(SteamID,config.STEAM.ID_REGEX,regexp_steam_id.test(SteamID))
 
             if(regexp_steam_id.test(SteamID) !== true){
@@ -273,53 +287,72 @@ bot.on('messageCreate', async message => {
             }
 
             // Check if registered
-            try {
-                if (isRegistered(member.id.toString())) {
-                    const userData = getRegisteredUser(member.id.toString())
-                    message.reply(`You are already registered.\n\nYour account was registered at: ${userData.registered_date}\nSteam ID: ${userData.steam_id}\n\nPlease create a ticket to remove the Steam ID from your account.`);
-                    return;
-                }
-            } catch(err) {
-                console.log('User profile is not registered');
-                console.error(err);
-            }
+            let registrationStatus = await backend.getRegistration(guild.id,member.id).catch((err) =>{
+                message.reply(replyUnableToConnectToBackend);
+                return null;
+            });
+            if(!registrationStatus)
+                return;
 
-            // Register
-            console.log(message.member);
-            let memberData = {
-                registered_date: new Date().toISOString(),
-                steam_id: SteamID,
-                known_as: [
-                    member.user.username
-                ]
-            };
-
-            // Write to storage
-            try {
-                fs.writeFileSync(config.DISCORD.MEMBER_PATH + member.id.toString() + '.json', JSON.stringify(memberData));
-            } catch(err){
-                console.log('Failed writing register data to disk');
-                console.error(err);
-                message.reply('Failed saving registration data. Please try again at a later time.');
+            console.log(registrationStatus);
+            if(registrationStatus.success === true){
+                message.reply(`You are already registered.\n\nYour account was registered at: ${registrationStatus.data.item.created_at}\nSteam ID: ${registrationStatus.data.item.steam_id}\n\nPlease create a ticket to remove the Steam ID from your account.`);
                 return;
             }
 
-            message.reply('Your Steam ID was successfully registered!');
+            // Register
+            //console.log(message.member);
+            let registration = await backend.register(guild.id,member.id,SteamID,member.user.username);
+            console.log(registration);
+            if(registration.success === true){
+                message.reply('Your Steam ID was successfully registered!');
+            } else {
+                message.reply('I was unable to register you. Please try again later.');
+            }
+            return;
         }
 
         /* dev commands */
-        if(hasDiscordRole(message,'Developer')){
+        if(hasDiscordRole(message,'Developer') || hasDiscordRole(message,'Bot Developer')){
             if (command === "me") {
                 console.log(message);
                 console.log(message.member);
                 message.reply(JSON.stringify(message.member));
             }
 
+            if(command === "myreg"){
+                let reg = await backend.getRegistration(guild.id,member.id);
+                console.log(reg);
+                if(reg.success === true){
+                    message.reply('You are registered');
+                } else {
+                    message.reply('You are not registered');
+                }
+            }
+
             if (command === "ping") {
                 console.log("ping");
                 console.log(message);
-                console.log(hasDiscordRole(message,'The Isle'))
+                //console.log(hasDiscordRole(message,'The Isle'))
                 message.reply("pong");
+                return;
+            }
+
+            if(command === 'knockknock'){
+                const attachment = new MessageAttachment('https://static.posters.cz/image/1300/plakater/breaking-bad-i-am-the-one-who-knocks-i15742.jpg');
+                message.reply({files: [attachment]})
+                    .then(() => console.log(`Replied to message "${message.content}"`))
+                    .catch(console.error);
+            }
+            
+            if (command === 'test') {
+                //let pd = await ftp_commands.currentPlayerData(76561197992028830);
+                //console.log(pd);
+                /*let characterSheet = await backend.storeCharacterSheet();
+                console.log(characterSheet);
+                console.log(characterSheet.data.item.content);*/
+                /*console.log(characterSheet.content);
+                console.log(characterSheet.member);*/
                 return;
             }
         }

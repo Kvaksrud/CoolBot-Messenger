@@ -1,19 +1,15 @@
 module.exports = {
     DISCORD: {
-        GUILD: '', // The Discord server to monitor
-        MEMBER_PATH: './storage/discord/members/',
+        GUILDS: [
+            ''
+            ], // The Discord servers to monitor
     },
     THE_ISLE:{
-        SERVER_PREFIX: '', // All servers start with the same name
-        SERVER_LIST: [ // TODO: Må sikres at dette er rett metode
-            ''
-        ],
         INJECTION_TEMPLATE_PATH: './templates/dinosaurs/injection/',
     },
     FTP: {
-        PLAYER_PROFILE_PATH: '/players/',
-        PLAYER_PROFILE_CACHE_PATH: './.cache/players/',
-        SECURE: true,
+        PLAYER_PROFILE_PATH: '/192.154.255.77_7797/TheIsle/Saved/Databases/Survival/Players/',
+        SECURE: false,
         ONLY_TRUSTED_CERTIFICATES: false
     },
     STEAM: {
