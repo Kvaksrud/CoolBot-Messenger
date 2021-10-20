@@ -12,7 +12,7 @@ const headers = {
  */
 client.registerMethod('characterSheetGet', process.env.COOLBOT_BACKEND_API_URL + '/CharacterSheet/${sheet_id}', 'GET')
 client.registerMethod('characterSheetStore', process.env.COOLBOT_BACKEND_API_URL + '/CharacterSheet', 'POST')
-function getCharacterSheet(sheetId){
+async function getCharacterSheet(sheetId){
     return new Promise((resolve, reject) => {
         let args = {
             path: {
@@ -32,7 +32,7 @@ function getCharacterSheet(sheetId){
         });
     });
 }
-function storeCharacterSheet(guildId,memberId,content,type = null){
+async function storeCharacterSheet(guildId,memberId,content,type = null){
     return new Promise((resolve, reject) => {
         let recordType;
         switch(type) {
@@ -74,7 +74,7 @@ function storeCharacterSheet(guildId,memberId,content,type = null){
 client.registerMethod('registerGet', process.env.COOLBOT_BACKEND_API_URL + '/DiscordRegistration/${member_id}', 'GET')
 client.registerMethod('registerStore', process.env.COOLBOT_BACKEND_API_URL + '/DiscordRegistration', 'POST')
 client.registerMethod('registerList', process.env.COOLBOT_BACKEND_API_URL + '/DiscordRegistration', 'GET')
-function getRegistration(guildId,memberId){
+async function getRegistration(guildId,memberId){
     return new Promise((resolve, reject) => {
         let args = {
             path: {
@@ -99,7 +99,7 @@ function getRegistration(guildId,memberId){
     })
 }
 
-function register(guildId,memberId,steamId,username){
+async function register(guildId,memberId,steamId,username){
     return new Promise((resolve, reject) => {
         let args = {
             data:  {
