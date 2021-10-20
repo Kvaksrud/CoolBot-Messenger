@@ -103,9 +103,9 @@ function register(guildId,memberId,steamId,username){
     return new Promise((resolve, reject) => {
         let args = {
             data:  {
-                'member_id': memberId,
-                'steam_id': steamId,
-                'username': username
+                'member_id': memberId.toString(),
+                'steam_id': steamId.toString(),
+                'username': username.toString()
             },
             parameters: {
                 'guild_id': guildId
