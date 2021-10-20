@@ -1,18 +1,12 @@
 module.exports = {
-    DISCORD: {
-        GUILDS: [
-            ''
-            ], // The Discord servers to monitor
-    },
     THE_ISLE:{
         INJECTION_TEMPLATE_PATH: './templates/dinosaurs/injection/',
     },
     FTP: {
-        PLAYER_PROFILE_PATH: '/192.154.255.77_7797/TheIsle/Saved/Databases/Survival/Players/',
-        SECURE: false,
-        ONLY_TRUSTED_CERTIFICATES: false
+        PLAYER_PROFILE_PATH: '/data/TheIsle/Saved/Databases/Survival/Players/',
     },
-    STEAM: {
-        ID_REGEX: '^[0-9]{17}$',
+    REGEX: {
+        STEAM_ID: '^[0-9]{17}$',
+        GENDER: '^(f|female|m|male)$',
     },
 };

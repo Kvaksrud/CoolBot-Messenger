@@ -589,7 +589,7 @@ function generate (dino,gender,player){
     if(!Object.keys(dinoTemplate).length === true) return; // Invalid dino template
 
     // Set female if specified
-    if(gender === 'f'){
+    if(gender === 'f' || gender === 'female'){
         dinoTemplate.bGender = true;
     }
 
