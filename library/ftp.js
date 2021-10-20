@@ -12,7 +12,12 @@ function getCurrentPlayerConfig(SteamID){
         c.on('ready', function() {
             let streamData;
             c.get(playerFilePath, function(err, stream) {
-                if (err) reject(err);
+                if (err) {
+                    console.error(err)
+                    reject(err);
+                    return;
+                }
+
                 stream.once('close', function() {
                     c.end();
                     resolve(streamData);
@@ -29,6 +34,10 @@ function getCurrentPlayerConfig(SteamID){
                 });
             });
         });
+        
+        c.on('error', (err) => {
+            reject(err);
+        });
 
         // connect to localhost:21 as anonymous
         c.connect({
@@ -36,8 +45,8 @@ function getCurrentPlayerConfig(SteamID){
             user: process.env.FTP_USER,
             port: process.env.FTP_PORT,
             password: process.env.FTP_PASSWORD,
-            secure: config.FTP.SECURE,
-            secureOptions: { rejectUnauthorized: config.FTP.ONLY_TRUSTED_CERTIFICATES },
+            secure: process.env.FTP_SECURE === "true" ? true : false,
+            secureOptions: { rejectUnauthorized: process.env.FTP_ONLY_TRUSTED_CERTIFICATES === "true" ? true : false },
         });
     })
 }
@@ -60,11 +69,16 @@ function injectCurrentPlayerConfig(SteamID,Content){
                 if (err) {
                     console.log('inject ' + SteamID + ' failed');
                     reject(err);
+                    return;
                 }
                 c.end();
                 console.log('inject ' + SteamID + ' success');
                 resolve(true);
             });
+        });
+
+        c.on('error', (err) => {
+            reject(err);
         });
 
         // connect to localhost:21 as anonymous
@@ -73,9 +87,10 @@ function injectCurrentPlayerConfig(SteamID,Content){
             user: process.env.FTP_USER,
             port: process.env.FTP_PORT,
             password: process.env.FTP_PASSWORD,
-            secure: config.FTP.SECURE,
-            secureOptions: { rejectUnauthorized: config.FTP.ONLY_TRUSTED_CERTIFICATES }
+            secure: process.env.FTP_SECURE === "true" ? true : false,
+            secureOptions: { rejectUnauthorized: process.env.FTP_ONLY_TRUSTED_CERTIFICATES === "true" ? true : false }
         });
+        
     })
 }
 
