@@ -29,7 +29,7 @@ async function handle(args,message){
     }
 
     // Register
-    let registration = await backend.register(guild.id,member.id,SteamID,member.user.username);
+    let registration = await backend.register(message.guild.id,message.member.id,SteamID,message.member.user.username);
     console.log(registration);
     if(registration.success === true){
         message.reply('Your Steam ID was successfully registered!');
