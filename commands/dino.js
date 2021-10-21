@@ -8,20 +8,36 @@ const templates = require('./../library/dinoTemplates.js');
 const regexp_gender = new RegExp(config.REGEX.GENDER);
 
 async function handle(args,message){
+    let reply;
+    await message.reply('Working...').then((sentReply) => { reply = sentReply; });
+
     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err) =>{
-        message.reply(lang.MESSAGES.DISCORD.UNABLE_TO_CONNECT_TO_BACKEND);
+        if(err.code === 'ECONNREFUSED'){
+            console.error(err);
+            reply.edit(lang.MESSAGES.DISCORD.UNABLE_TO_CONNECT_TO_BACKEND).catch((errD) => {
+                console.log('Discord Error:')
+                console.error(errD);
+            });
+        } else {
+            console.log('Unknown error from FTP command');
+            console.error(err);
+            reply.edit('Well that was embarresing!\nI do not know what is wrong, but please submit a ticket with the refrence ``BOT#'+err.code+'-DINO``').catch((errD) => {
+                console.log('Discord Error:')
+                console.error(errD);
+            });
+        };
         return null;
     });
+    if(registrationStatus === null) // Makes sure to exit execution if it could not connect to the api
+        return;
 
     console.log(registrationStatus);
     if(registrationStatus.success !== true){
         console.log(registrationStatus);
-        message.reply('You are not registered');
+        reply.edit('You are not registered');
         return;
     }
     if(args.length === 0){ // !dino (no args)
-        let reply;
-        await message.reply('Please wait while I check the server...').then((sentReply) => { reply = sentReply; });
         //console.log('Reply: ',reply);
         console.log(registrationStatus.data.item.steam_id);
         ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).then((result) => {
@@ -52,16 +68,15 @@ async function handle(args,message){
         return;
     } else if(args[0] === 'inject'){ // !dino inject <dino> <gender>
         if(templates.InjectionNames.includes(args[1]) !== true){
-            message.reply('Invalid dino selection.\n```Valid selection: ' + templates.InjectionNames.sort().join(', ') + '\nExample: !dino inject trike f```');
+            reply.edit('Invalid dino selection.\n```Valid selection: ' + templates.InjectionNames.sort().join(', ') + '\nExample: !dino inject trike f```');
             return;
         }
         if(regexp_gender.test(args[2]) !== true){
-            message.reply('You must select a gender.\n```Valid selection: m, f\nExample: !dino inject trike f```');
+            reply.edit('You must select a gender.\n```Valid selection: m, f\nExample: !dino inject trike f```');
             return;
         }
 
-        let reply;
-        await message.reply('Please wait while I do some magic! Cast time is a little long, hold on :)').then((sentReply) => { reply = sentReply; });
+        await reply.edit('Please wait while I do some magic! Cast time is a little long, hold on :)');
         const currentPlayer = await ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).then((result) => {
             return result;
         }).catch((err) => {
@@ -92,7 +107,7 @@ async function handle(args,message){
         }
         
     } else { // Invalid command
-        message.reply('Invalid command');
+        reply.edit('Invalid command');
     }
     return;
 }
