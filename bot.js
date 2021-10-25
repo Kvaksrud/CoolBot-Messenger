@@ -111,6 +111,19 @@ bot.on('messageCreate', async message => {
             return;
         }
 
+        /**
+         * Labor
+         */
+         if (command === 'labor') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.LABOR_CHANNEL_NAME){
+                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
+            let definition = require('./commands/labor.js')
+            await definition.handle(args,message);
+            return;
+        }
+
         /* dev commands */
         if(hasDiscordRole(message,'Developer') || hasDiscordRole(message,'Bot Developer')){
             if (command === "me") {

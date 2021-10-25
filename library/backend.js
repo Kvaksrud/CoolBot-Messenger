@@ -148,8 +148,6 @@ async function register(guildId,memberId,steamId,username){
  * Bank Account API
  */
 client.registerMethod('bankAccountGet', process.env.COOLBOT_BACKEND_API_URL + '/BankAccount/${member_id}', 'GET');
-
-
 async function getBankAccount(guildId,memberId){
     return new Promise((resolve, reject) => {
         let args = {
@@ -180,7 +178,6 @@ async function getBankAccount(guildId,memberId){
     })
 }
 
-
 /**
  * Bank Transaction API
  * Description: Can be withdawal or deposit. All amounts are positive and converten in backend.
@@ -188,7 +185,8 @@ async function getBankAccount(guildId,memberId){
 client.registerMethod('bankTransaction', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction', 'POST');
 client.registerMethod('bankTransactionSend', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction/Send', 'POST');
 client.registerMethod('bankTransactionTransfer', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction/Transfer', 'POST');
-async function doBankTransaction(guildId,memberId,type,target,amount,description){
+client.registerMethod('bankTransactionSearch', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction/Search', 'GET');
+async function doBankTransaction(guildId,memberId,type,target,amount,description,timer = null){
     return new Promise((resolve, reject) => {
         let args = {
             data:  {
@@ -197,6 +195,7 @@ async function doBankTransaction(guildId,memberId,type,target,amount,description
                 'target': target, // wallet / balance
                 'amount': amount, // Positive amount only
                 'description': description, // Description of transaction (gets logged)
+                'timer': timer,
             },
             parameters: {
                 'guild_id': guildId
@@ -270,6 +269,35 @@ async function doBankTransfer(guildId,memberId,target,amount){
         });
     })
 }
+async function doBankTransactionSearch(guildId,memberId,type,limit=25,timer=null){
+    return new Promise((resolve, reject) => {
+        let args = {
+            parameters: {
+                'guild_id': guildId,
+                'member_id': memberId,
+                'type': type,
+                'limit': limit,
+                'timer': timer,
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.bankTransactionSearch(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log('Failed to get transaction search for ' + memberId + ' in guild ' + guildId);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
 
 module.exports = {
     // Character Sheet
@@ -285,6 +313,7 @@ module.exports = {
     doBankTransfer: async (guildId,memberId,target,amount) => { return await doBankTransfer(guildId,memberId,target,amount) },
     
     // Bank Transaction
-    doBankTransaction: async (guildId,memberId,type,target,amount,description) => { return await doBankTransaction(guildId,memberId,type,target,amount,description) },
+    doBankTransaction: async (guildId,memberId,type,target,amount,description,timer) => { return await doBankTransaction(guildId,memberId,type,target,amount,description,timer) },
     doBankTransactionSend: async (guildId,fromMemberId,toMemberId,amount) => { return await doBankTransactionSend(guildId,fromMemberId,toMemberId,amount) },
+    doBankTransactionSearch: async (guildId,memberId,type,limit=25,timer=null) => { return await doBankTransactionSearch(guildId,memberId,type,limit,timer) },
 }

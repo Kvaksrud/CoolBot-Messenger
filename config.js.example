@@ -9,4 +9,18 @@ module.exports = {
         STEAM_ID: '^[0-9]{17}$',
         GENDER: '^(f|female|m|male)$',
     },
+    DISCORD: {
+        BANKING_CHANNEL_NAME: 'bank-services',
+        DINO_CHANNEL_NAME: 'dino-requests',
+        REGISTER_CHANNEL_NAME: 'registration',
+        LABOR_CHANNEL_NAME: 'labor',
+    },
+    BANKING:{
+        CURRENCY: '$',
+    },
+    LABOR: {
+        MIN_AMOUNT: 100,
+        MAX_AMOUNT: 1500,
+        MINUTES_BETWEEN: 120,
+    }
 };
