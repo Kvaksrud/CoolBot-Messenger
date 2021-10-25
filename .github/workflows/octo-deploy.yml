@@ -14,6 +14,7 @@ env:
   OCTOPUS_PROJECT_NAME: coolbot-messenger
   DEPLOY_TO: Development
   CHANNEL: Default
+  SPACE: Spaces-2
 
 jobs:
   build-ci-octo-package:
@@ -67,7 +68,7 @@ jobs:
         env:
           OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
           OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
-        run: octo push --package="$OUTPUT_FOLDER/$PACKAGE_NAME.$PACKAGE_VERSION.nupkg" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY"
+        run: octo push --package="$OUTPUT_FOLDER/$PACKAGE_NAME.$PACKAGE_VERSION.nupkg" --server="$OCTOPUS_SERVER_URL" --space="$SPACE" --apiKey="$OCTOPUS_API_KEY"
 
       - name: Build information packaging
         uses: Amadevus/pwsh-script@v2.0.0
@@ -96,10 +97,10 @@ jobs:
         env:
           OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
           OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
-        run: octo build-information --package-id="$PACKAGE_NAME" --file="buildinformation.json" --version="$PACKAGE_VERSION" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY"
+        run: octo build-information --package-id="$PACKAGE_NAME" --file="buildinformation.json" --version="$PACKAGE_VERSION" --server="$OCTOPUS_SERVER_URL" --space="$SPACE" --apiKey="$OCTOPUS_API_KEY"
 
       - name: Create release to dev
         env:
           OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
           OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
-        run: octo create-release --project="$OCTOPUS_PROJECT_NAME" --package=Kvaksrud-GitSSH:1.0.0 --packageVersion="$PACKAGE_VERSION" --releaseNumber="$DEPLOYMENT_VERSION" --channel="$CHANNEL" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY" --deployTo="$DEPLOY_TO"
+        run: octo create-release --project="$OCTOPUS_PROJECT_NAME" --package=Kvaksrud-GitSSH:1.0.0 --packageVersion="$PACKAGE_VERSION" --releaseNumber="$DEPLOYMENT_VERSION" --channel="$CHANNEL" --server="$OCTOPUS_SERVER_URL" --space="$SPACE" --apiKey="$OCTOPUS_API_KEY" --deployTo="$DEPLOY_TO"
