@@ -7,7 +7,7 @@ const headers = {
     'Content-Type': 'application/json',
 }
 
-/*
+/**
  * Character Sheet API - Injection/cache
  */
 client.registerMethod('characterSheetGet', process.env.COOLBOT_BACKEND_API_URL + '/CharacterSheet/${sheet_id}', 'GET')
@@ -22,6 +22,11 @@ async function getCharacterSheet(sheetId){
         }
 
         let request = client.methods.characterSheetGet(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
             resolve(data);
         })
 
@@ -57,6 +62,11 @@ async function storeCharacterSheet(guildId,memberId,content,type = null){
         }
 
         let request = client.methods.characterSheetStore(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
             resolve(data);
         })
 
@@ -68,7 +78,7 @@ async function storeCharacterSheet(guildId,memberId,content,type = null){
     });
 }
 
-/*
+/**
  * Registration API
  */
 client.registerMethod('registerGet', process.env.COOLBOT_BACKEND_API_URL + '/DiscordRegistration/${member_id}', 'GET')
@@ -88,6 +98,11 @@ async function getRegistration(guildId,memberId){
         }
 
         let request = client.methods.registerGet(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
             resolve(data);
         })
 
@@ -98,7 +113,6 @@ async function getRegistration(guildId,memberId){
         });
     })
 }
-
 async function register(guildId,memberId,steamId,username){
     return new Promise((resolve, reject) => {
         let args = {
@@ -114,11 +128,143 @@ async function register(guildId,memberId,steamId,username){
         }
 
         let request = client.methods.registerStore(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
             resolve(data);
         })
 
         request.on('error', function(err) {
             console.log('Failed to register for ' + memberId + ' in guild ' + guildId);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+
+/**
+ * Bank Account API
+ */
+client.registerMethod('bankAccountGet', process.env.COOLBOT_BACKEND_API_URL + '/BankAccount/${member_id}', 'GET');
+
+
+async function getBankAccount(guildId,memberId){
+    return new Promise((resolve, reject) => {
+        let args = {
+            path: {
+                'member_id': memberId
+            },
+            parameters: {
+                'guild_id': guildId,
+                'discord_identifier': true,
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.bankAccountGet(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log('Failed to get bank account for ' + memberId + ' in guild ' + guildId);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+
+
+/**
+ * Bank Transaction API
+ * Description: Can be withdawal or deposit. All amounts are positive and converten in backend.
+ */
+client.registerMethod('bankTransaction', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction', 'POST');
+client.registerMethod('bankTransactionSend', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction/Send', 'POST');
+client.registerMethod('bankTransactionTransfer', process.env.COOLBOT_BACKEND_API_URL + '/BankTransaction/Transfer', 'POST');
+async function doBankTransaction(guildId,memberId,type,target,amount,description){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': memberId.toString(),
+                'type': type, // deposit / withdraw
+                'target': target, // wallet / balance
+                'amount': amount, // Positive amount only
+                'description': description, // Description of transaction (gets logged)
+            },
+            parameters: {
+                'guild_id': guildId
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.bankTransaction(args, function (data, response) {
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to transfer money from wallet to balance with the amount ${amount} in guild ${guild} for ${member_id}`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+async function doBankTransactionSend(guildId,fromMemberId,toMemberId,amount){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'from_member_id': fromMemberId.toString(),
+                'to_member_id': toMemberId.toString(),
+                'amount': amount
+            },
+            parameters: {
+                'guild_id': guildId
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.bankTransactionSend(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to send money from ${fromMemberId} to ${toMemberId} with the amount ${amount} in guild ${guild}`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+async function doBankTransfer(guildId,memberId,target,amount){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': memberId.toString(),
+                'target': target,
+                'amount': amount
+            },
+            parameters: {
+                'guild_id': guildId
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.bankTransactionTransfer(args, function (data, response) {
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to transfer money from ${target} with the amount ${amount} in guild ${guild} for ${memberId}`);
             console.log(err);
             reject(err);
         });
@@ -133,4 +279,12 @@ module.exports = {
     // Registration
     getRegistration: async (guildId,memberId) => { return await getRegistration(guildId,memberId); },
     register: async (guildId,memberId,steamId,username) => { return await register(guildId,memberId,steamId,username); },
+
+    // Bank Account
+    getBankAccount: async (guildId,memberId) => { return await getBankAccount(guildId,memberId) },
+    doBankTransfer: async (guildId,memberId,target,amount) => { return await doBankTransfer(guildId,memberId,target,amount) },
+    
+    // Bank Transaction
+    doBankTransaction: async (guildId,memberId,type,target,amount,description) => { return await doBankTransaction(guildId,memberId,type,target,amount,description) },
+    doBankTransactionSend: async (guildId,fromMemberId,toMemberId,amount) => { return await doBankTransactionSend(guildId,fromMemberId,toMemberId,amount) },
 }
