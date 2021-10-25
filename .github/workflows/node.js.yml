@@ -11,7 +11,7 @@ on:
 env:  
   OUTPUT_FOLDER: PackagesOutput
   PACKAGE_NAME: CoolBot-Messenger
-  OCTOPUS_PROJECT_NAME: CoolBot Messenger
+  OCTOPUS_PROJECT_NAME: coolbot-messenger
   DEPLOY_TO: Development
   CHANNEL: Default
 
