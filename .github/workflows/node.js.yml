@@ -1,0 +1,104 @@
+# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Node.js CI
+
+on:
+  pull_request:
+    branches: [ dev ]
+
+env:  
+  OUTPUT_FOLDER: PackagesOutput
+  PACKAGE_NAME: CoolBot-Messenger
+  OCTOPUS_PROJECT_NAME: CoolBot Messenger
+  DEPLOY_TO: Development
+  CHANNEL: Default
+
+jobs:
+  build-ci-octo-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Octopus CLI
+        run: |
+          sudo apt update && sudo apt install --no-install-recommends gnupg curl ca-certificates apt-transport-https && \
+          curl -sSfL https://apt.octopus.com/public.key | sudo apt-key add - && \
+          sudo sh -c "echo deb https://apt.octopus.com/ stable main > /etc/apt/sources.list.d/octopus.com.list" && \
+          sudo apt update && sudo apt install octopuscli -y
+
+      - name: Set up environment variables
+        uses: Amadevus/pwsh-script@v2.0.1
+        with:
+          script: |
+            # Branch
+            $branchName = (${env:GITHUB_REF} -replace "refs/heads/", "")
+            Write-Host "Github ref: ${env:GITHUB_REF}"
+            Write-Host "Branch name: $branchName"
+
+            # Commit
+            $commitMessage = git log -1 --pretty=oneline
+            Write-Host "The commit message is: $commitMessage"
+
+            # Version
+            $versionFromFile = Get-Content version.md
+            Write-Host "Found $versionFromFile in version.md"
+            $deploymentVersionNumber = $versionfromFile + '-build' + ${env:GITHUB_RUN_NUMBER}
+            $packageVersionNumber = $deploymentVersionNumber
+            Write-Host "Deployment and package version set to $deploymentVersionNumber"
+
+            # Environment vars
+            Write-Host "Setting environment variable DEPLOYMENT_VERSION to: $deploymentVersionNumber"
+            Write-Host "Setting environment variable PACKAGE_VERSION to: $packageVersionNumber"
+            Write-Host "Setting environment variable BRANCH_NAME to: $branchName"
+            Write-Host "Setting environment variable COMMIT_MESSAGE to: $commitMessage"
+
+            Set-ActionVariable DEPLOYMENT_VERSION $deploymentVersionNumber
+            Set-ActionVariable PACKAGE_VERSION $packageVersionNumber
+            Set-ActionVariable BRANCH_NAME $branchName
+            Set-ActionVariable COMMIT_MESSAGE $commitMessage
+
+      - name: Build Nuget Package
+        run: octo pack --id="$PACKAGE_NAME" --version="$PACKAGE_VERSION" --basePath="$GITHUB_WORKSPACE" --outFolder="$OUTPUT_FOLDER"
+
+      - name: Publish Nuget Package
+        env:
+          OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
+          OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
+        run: octo push --package="$OUTPUT_FOLDER/$PACKAGE_NAME.$PACKAGE_VERSION.nupkg" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY"
+
+      - name: Build information packaging
+        uses: Amadevus/pwsh-script@v2.0.0
+        with:
+          script: |
+            $jsonBody = @{
+              BuildEnvironment = "GitHub Actions"
+              Branch = "${env:BRANCH_NAME}"
+              BuildNumber = "${env:GITHUB_RUN_NUMBER}"
+              BuildUrl = "https://github.com/${env:GITHUB_REPOSITORY}/actions/runs/${env:GITHUB_RUN_ID}"
+              VcsCommitNumber = "${env:GITHUB_SHA}"
+              VcsType = "Git"
+              VcsRoot = "https://github.com/${env:GITHUB_REPOSITORY}.git"
+              Commits = @(
+                @{
+                  Id = "${env:GITHUB_SHA}"
+                  LinkUrl = "https://github.com/${env:GITHUB_REPOSITORY}/commit/${env:GITHUB_SHA}"
+                  Comment = "${env:COMMIT_MESSAGE}"
+                }
+              )
+            } | ConvertTo-Json -Depth 10
+            New-Item "buildinformation.json" -ItemType File | Out-Null
+            Set-Content -Path "buildinformation.json" -Value $jsonBody
+
+      - name: Publish build information
+        env:
+          OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
+          OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
+        run: octo build-information --package-id="$PACKAGE_NAME" --file="buildinformation.json" --version="$PACKAGE_VERSION" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY"
+
+      - name: Create release to dev
+        env:
+          OCTOPUS_SERVER_URL: ${{ secrets.OCTOPUS_SERVER_URL }}
+          OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} 
+        run: octo create-release --project="$OCTOPUS_PROJECT_NAME" --package=Kvaksrud-GitSSH:1.0.0 --packageVersion="$PACKAGE_VERSION" --releaseNumber="$DEPLOYMENT_VERSION" --channel="$CHANNEL" --server="$OCTOPUS_SERVER_URL" --apiKey="$OCTOPUS_API_KEY" --deployTo="$DEPLOY_TO"
