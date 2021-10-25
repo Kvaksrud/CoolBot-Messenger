@@ -53,6 +53,10 @@ bot.on('messageCreate', async message => {
 
         // DINO
         if(command === 'dino'){
+            if(message.channel.name !== config.DISCORD.DINO_CHANNEL_NAME){
+                console.log('!dino was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
             let definition = require('./commands/dino.js') // TODO: Minimize even MORE!
             await definition.handle(args,message);
             return;
@@ -60,7 +64,49 @@ bot.on('messageCreate', async message => {
 
         // REGISTER
         if (command === 'register') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.REGISTER_CHANNEL_NAME){
+                console.log('!register was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
             let definition = require('./commands/register.js')
+            await definition.handle(args,message);
+            return;
+        }
+
+        // BANK ACCOUNT
+        if (command === 'money') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
+                console.log('!money was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
+            let definition = require('./commands/money.js')
+            await definition.handle(args,message);
+            return;
+        }
+        if (command === 'deposit' || command === 'dep') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
+                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
+            let definition = require('./commands/deposit.js')
+            await definition.handle(args,message);
+            return;
+        }
+        if (command === 'withdraw' || command === 'with') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
+                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
+            let definition = require('./commands/withdraw.js')
+            await definition.handle(args,message);
+            return;
+        }
+        if (command === 'send') { // TODO: Minimize even MORE!
+            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
+                console.log('!send was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
+                return;
+            }
+            let definition = require('./commands/send.js')
             await definition.handle(args,message);
             return;
         }
