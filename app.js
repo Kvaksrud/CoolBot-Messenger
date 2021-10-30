@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Run Discord Bot
 require('./bot.js');
 
