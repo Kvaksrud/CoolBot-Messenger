@@ -299,6 +299,37 @@ async function doBankTransactionSearch(guildId,memberId,type,limit=25,timer=null
     })
 }
 
+// Labor
+client.registerMethod('doLabor', process.env.COOLBOT_BACKEND_API_URL + '/Labor', 'POST');
+async function doLabor(guildId,memberId){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': memberId.toString(),
+            },
+            parameters: {
+                'guild_id': guildId
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.doLabor(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do labor`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+
 module.exports = {
     // Character Sheet
     getCharacterSheet: async (sheetId) => { return await getCharacterSheet(sheetId) },
@@ -316,4 +347,6 @@ module.exports = {
     doBankTransaction: async (guildId,memberId,type,target,amount,description,timer) => { return await doBankTransaction(guildId,memberId,type,target,amount,description,timer) },
     doBankTransactionSend: async (guildId,fromMemberId,toMemberId,amount) => { return await doBankTransactionSend(guildId,fromMemberId,toMemberId,amount) },
     doBankTransactionSearch: async (guildId,memberId,type,limit=25,timer=null) => { return await doBankTransactionSearch(guildId,memberId,type,limit,timer) },
-}
+
+    // Labor
+    doLabor: async (guildId,memberId) => { return await doLabor(guildId,memberId) },}
