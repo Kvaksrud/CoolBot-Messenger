@@ -1,7 +1,4 @@
 module.exports = {
-    THE_ISLE:{
-        INJECTION_TEMPLATE_PATH: './templates/dinosaurs/injection/',
-    },
     FTP: {
         PLAYER_PROFILE_PATH: '/data/TheIsle/Saved/Databases/Survival/Players/',
     },
@@ -14,13 +11,5 @@ module.exports = {
         DINO_CHANNEL_NAME: 'dino-requests',
         REGISTER_CHANNEL_NAME: 'registration',
         LABOR_CHANNEL_NAME: 'labor',
-    },
-    BANKING:{
-        CURRENCY: '$',
-    },
-    LABOR: {
-        MIN_AMOUNT: 100,
-        MAX_AMOUNT: 1500,
-        MINUTES_BETWEEN: 120,
     }
 };
