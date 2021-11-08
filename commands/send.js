@@ -1,8 +1,9 @@
 // Give money from one player to another (bank balance to bank balance)
 require('dotenv').config(); // Include environment variables
-const config = require('../config.js'); // Config
 const lang = require('../lang/default.js'); // Config
 const backend = require('../library/backend.js'); // API / Database
+const messaging = require('../library/messaging.js');
+const { debug } = require('../library/debug.js');
 
 function isNumeric(str) {
     if (typeof str != "string") return false // we only process strings!  
@@ -12,7 +13,7 @@ function isNumeric(str) {
 
 async function handle(args,message){
     let reply;
-    await message.reply('Working...').then((sentReply) => { reply = sentReply; });
+    await message.reply('Please wait...').then((sentReply) => { reply = sentReply; });
 
     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err) =>{
         if(err.code === 'ECONNREFUSED'){
@@ -34,7 +35,7 @@ async function handle(args,message){
     if(registrationStatus === null) // Makes sure to exit execution if it could not connect to the api
         return;
 
-    console.log(registrationStatus);
+        debug(registrationStatus);
     if(registrationStatus.success !== true){
         console.log(registrationStatus);
         reply.edit('You are not registered, so you are not elegible for a bank account. Please register before using our services. Thanks!');
@@ -42,13 +43,13 @@ async function handle(args,message){
     }
 
     mentionedUser = message.mentions.users.first();
-    console.log('mentioned: ',mentionedUser);
+    debug(['mentioned: ',mentionedUser]);
     if(typeof mentionedUser === 'undefined' && !mentionedUser){
         reply.edit('Missing user mention as first argument.');
         return;
     }
 
-    console.log('is numeric',isNumeric(args[1]))
+    debug(['is numeric',isNumeric(args[1])])
     if(isNumeric(args[1]) === false){
         reply.edit('The amount supplied is invalid.');
         return;
@@ -67,7 +68,7 @@ async function handle(args,message){
      * Bank account of sender
      */
      let senderBankAccount = await backend.getBankAccount(message.guild.id,message.member.id).then((result) => {
-        console.log('sender bank account:',result);
+        debug(['sender bank account:',result]);
         return result;
     }).catch((err) => {
         if(err.code === 'ECONNREFUSED'){
@@ -110,7 +111,14 @@ async function handle(args,message){
         })
 
         if(transfer.code === 0){
-            reply.edit(args[0] + ' received your money transfer.\n\nYour new account balance is:\n```Wallet (cash): '+transfer.data.bankAccount.wallet.toString()+'\nBank (balance): '+transfer.data.bankAccount.balance.toString()+'```');
+            let comment = args[0] + ' received you transfer of :moneybag: ``' + args[1] + '``.\rYou new Banking Statement is included below';
+            reply.delete();
+            messaging.BankingBalance(message,transfer.data.bankAccount.balance,transfer.data.bankAccount.wallet,comment,'Money transfer to other player');
+        } else if(transfer.code === 404){
+            reply.edit('The recipient does not have a bank account with us.').catch((errD) => {
+                console.log('Discord Error:')
+                console.error(errD);
+            });
         } else {
             reply.edit('Unknown exception. Please contact support with code SEND#TRANSFER-'+transfer.code.toString());
         }

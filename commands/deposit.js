@@ -1,9 +1,10 @@
 // Show your money stats
 
 require('dotenv').config(); // Include environment variables
-const config = require('../config.js'); // Config
 const lang = require('../lang/default.js'); // Config
 const backend = require('../library/backend.js'); // API / Database
+const messaging = require('../library/messaging.js');
+const { debug } = require('../library/debug.js');
 
 function isNumeric(str) {
     if (typeof str != "string") return false // we only process strings!  
@@ -13,7 +14,7 @@ function isNumeric(str) {
 
 async function handle(args,message){
     let reply;
-    await message.reply('Working...').then((sentReply) => { reply = sentReply; });
+    await message.reply('Please wait...').then((sentReply) => { reply = sentReply; });
 
     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err) =>{
         if(err.code === 'ECONNREFUSED'){
@@ -35,14 +36,14 @@ async function handle(args,message){
     if(registrationStatus === null) // Makes sure to exit execution if it could not connect to the api
         return;
 
-    console.log(registrationStatus);
+   debug(registrationStatus);
     if(registrationStatus.success !== true){
         //if(registrationStatus.exception)
         reply.edit('You are not registered, so you are not elegible for a bank account. Please register before using our services. Thanks!');
         return;
     }
     if(args.length === 1){
-        console.log('is numeric',isNumeric(args[0]))
+        debug(['is numeric',isNumeric(args[0])])
         if(isNumeric(args[0]) === false){
             if(args[0].toLowerCase() === 'all'){
                 let bankAccount = await backend.getBankAccount(message.guild.id,message.member.id).then((result) => {
@@ -64,9 +65,13 @@ async function handle(args,message){
                     };
                     
                 });
-                console.log(bankAccount);
+                debug(bankAccount);
                 if(bankAccount.code === 0){
                     args[0] = bankAccount.data.item.wallet;
+                    if(bankAccount.data.item.wallet === 0){
+                        reply.edit('You do not have any money to deposit.');
+                        return;
+                    }
                 } else if(bankAccount.code === 301){
                     reply.edit('You do not currenlty have a bank account with us! Please do some grinding or have someone send you some money and we will open an account for you!');
                     return;
@@ -80,10 +85,10 @@ async function handle(args,message){
             }
         }
     
-        console.log('amount',args[0]);
+        debug(['amount',args[0]]);
         const amount = Number(args[0]);
         if(0 >= amount){
-            reply.edit('The amount supplied is invalid.');
+                reply.edit('The amount supplied is invalid.');
             return;
         } else if(amount >= 1000000){
             reply.edit('Your account has a withdrawal limit of ``1000000`` coins.');
@@ -91,7 +96,7 @@ async function handle(args,message){
         }
 
         let transfer = await backend.doBankTransfer(message.guild.id,message.member.id,'balance',amount).then((result) => {
-            console.log(result);
+            debug(result);
             return result;
         }).catch((err) => {
             if(err.code === 'ECONNREFUSED'){
@@ -111,9 +116,11 @@ async function handle(args,message){
             return;
         });
 
-        console.log(transfer);
+        debug(transfer);
         if(transfer.code === 0) { // OK
-            reply.edit('You deposited ``'+amount+'`` coins from your wallet to you balance.\n\nYou new Bank Account statement is ```Wallet: '+transfer.data.bank_account.wallet.toString()+'\nBalance: '+transfer.data.bank_account.balance.toString()+'\n```');
+            reply.delete();
+            let comment = 'You deposited :moneybag: ``' + amount.toString() + '`` to your Bank Balance.\rYour new Bank Statement is included below.';
+            messaging.BankingBalance(message,transfer.data.bank_account.balance,transfer.data.bank_account.wallet,comment,'Bank Deposit Statement');
         } else if(transfer.code === 300) { // Insufficient funds
             reply.edit('Insufficient funds to complete transfer.\nYou dont have enough money in your wallet to deposit.');
         } else {

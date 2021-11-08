@@ -1,10 +1,10 @@
 // Give money from one player to another (bank balance to bank balance)
 require('dotenv').config(); // Include environment variables
-const config = require('../config.js'); // Config
 const lang = require('../lang/default.js'); // Config
 const backend = require('../library/backend.js'); // API / Database
 const laborLang = require('../lang/en/labor.js');
-const { time } = require('@discordjs/builders');
+const { debug } = require('../library/debug.js');
+const messaging = require('../library/messaging.js');
 
 function getRandomNumberBetween(min,max){
     return Math.floor(Math.random()*(max-min+1)+min);
@@ -59,26 +59,17 @@ async function handle(args,message){
         return null;
     });
 
-    console.log(laborStatus);
+    debug(laborStatus);
 
     if(laborStatus.code === 263){
         const moment = require('moment');
-        const lastLaborMoment = moment().add(laborStatus.data.seconds_left,'s');
-        const duration = moment.duration(lastLaborMoment.diff(moment()));
-        let timeString;
-        if(duration.hours() > 0)
-            timeString = duration.hours().toString() + ' hour(s), ' + duration.minutes().toString() + ' minute(s) and ' + duration.seconds().toString() + ' second(s)';
-        else if(duration.hours() === 0 && duration.minutes > 0)
-            timeString = duration.minutes().toString() + ' minute(s) and ' + duration.seconds().toString() + ' second(s)';
-        else if(duration.hours() === 0 && duration.minutes() === 0 && duration.seconds() > 0){
-            timeString = duration.seconds().toString() + ' seconds';
-        } else {
-            timeString = 'unknown';
-        }
-        reply.edit(laborStatus.data.message + '\rYou can work again in ``'+timeString+'``.');
+        const lastMoment = moment().add(laborStatus.data.seconds_left,'s');
+        reply.edit('You can work again <t:'+lastMoment.unix()+':R>.');
         return;
     } else if(laborStatus.code === 0){
-        reply.edit(laborStatus.data.item.description + '\rThe amount was added to your '+laborStatus.data.item.target+'.')
+        messaging.Labor(message,laborStatus);
+        reply.delete();
+        //reply.edit(laborStatus.data.item.description + '\rThe amount was added to your '+laborStatus.data.item.target+'.')
         return;
     } else {
         reply.edit('Unknown reply from server. Please create a ticket.');

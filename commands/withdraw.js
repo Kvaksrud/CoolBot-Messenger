@@ -1,9 +1,10 @@
 // Show your money stats
 
 require('dotenv').config(); // Include environment variables
-const config = require('../config.js'); // Config
 const lang = require('../lang/default.js'); // Config
 const backend = require('../library/backend.js'); // API / Database
+const messaging = require('../library/messaging.js');
+const { debug } = require('../library/debug.js');
 
 function isNumeric(str) {
     if (typeof str != "string") return false // we only process strings!  
@@ -13,7 +14,7 @@ function isNumeric(str) {
 
 async function handle(args,message){
     let reply;
-    await message.reply('Working...').then((sentReply) => { reply = sentReply; });
+    await message.reply('Please wait...').then((sentReply) => { reply = sentReply; });
 
     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err) =>{
         if(err.code === 'ECONNREFUSED'){
@@ -35,14 +36,14 @@ async function handle(args,message){
     if(registrationStatus === null) // Makes sure to exit execution if it could not connect to the api
         return;
 
-    console.log(registrationStatus);
+    debug(registrationStatus);
     if(registrationStatus.success !== true){
         //if(registrationStatus.exception)
         reply.edit('You are not registered, so you are not elegible for a bank account. Please register before using our services. Thanks!');
         return;
     }
     if(args.length === 1){
-        console.log('is numeric',isNumeric(args[0]))
+        debug(['is numeric',isNumeric(args[0])])
         if(isNumeric(args[0]) === false){
             if(args[0].toLowerCase() === 'all'){
                 let bankAccount = await backend.getBankAccount(message.guild.id,message.member.id).then((result) => {
@@ -64,7 +65,7 @@ async function handle(args,message){
                     };
                     
                 });
-                console.log(bankAccount);
+                debug(bankAccount);
                 if(bankAccount.code === 0){
                     args[0] = bankAccount.data.item.balance;
                 } else if(bankAccount.code === 301){
@@ -80,7 +81,7 @@ async function handle(args,message){
             }
         }
     
-        console.log('amount',args[0]);
+        debug('amount',args[0]);
         const amount = Number(args[0]);
         if(0 >= amount){
             reply.edit('The amount supplied is invalid.');
@@ -91,7 +92,7 @@ async function handle(args,message){
         }
 
         let transfer = await backend.doBankTransfer(message.guild.id,message.member.id,'wallet',amount).then((result) => {
-            console.log(result);
+            debug(result);
             return result;
         }).catch((err) => {
             if(err.code === 'ECONNREFUSED'){
@@ -111,9 +112,11 @@ async function handle(args,message){
             return;
         });
 
-        console.log(transfer);
+        debug(transfer);
         if(transfer.code === 0) { // OK
-            reply.edit('You withdrew ``'+amount+'`` coins from you balance to you wallet.\n\nYou new Bank Account statement is ```Wallet: '+transfer.data.bank_account.wallet.toString()+'\nBalance: '+transfer.data.bank_account.balance.toString()+'\n```');
+            reply.delete();
+            let comment = 'You withdrew :moneybag: ``' + amount.toString() + '`` from your Bank Balance.\rYour new Bank Statement is included below.';
+            messaging.BankingBalance(message,transfer.data.bank_account.balance,transfer.data.bank_account.wallet,comment,'Bank Withdrawal Statement');
         } else if(transfer.code === 300) { // Insufficient funds
             reply.edit('Insufficient funds to complete transfer.\nYour balance is lower than what you are trying to withdraw.');
         } else {

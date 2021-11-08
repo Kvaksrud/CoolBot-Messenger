@@ -1,13 +1,14 @@
 // Show your money stats
 
 require('dotenv').config(); // Include environment variables
-const config = require('../config.js'); // Config
 const lang = require('../lang/default.js'); // Config
 const backend = require('../library/backend.js'); // API / Database
+const messaging = require('../library/messaging.js');
+const { debug } = require('../library/debug.js');
 
 async function handle(args,message){
     let reply;
-    await message.reply('Working...').then((sentReply) => { reply = sentReply; });
+    await message.reply('Please wait...').then((sentReply) => { reply = sentReply; });
 
     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err) =>{
         if(err.code === 'ECONNREFUSED'){
@@ -29,7 +30,7 @@ async function handle(args,message){
     if(registrationStatus === null) // Makes sure to exit execution if it could not connect to the api
         return;
 
-    console.log(registrationStatus);
+        debug(registrationStatus);
     if(registrationStatus.success !== true){
         //if(registrationStatus.exception)
         reply.edit('You are not registered, so you are not elegible for a bank account. Please register before using our services. Thanks!');
@@ -37,9 +38,10 @@ async function handle(args,message){
     }
     if(args.length === 0){ // !money (no args)
         backend.getBankAccount(message.guild.id,message.member.id).then((result) => {
-            console.log(result);
+            debug(result);
             if(result.code === 0){
-                reply.edit('You account balance is:\n```Wallet (cash): '+result.data.item.wallet.toString()+'\nBank (balance): '+result.data.item.balance.toString()+'```');
+                reply.delete();
+                messaging.BankingBalance(message,result.data.item.balance,result.data.item.wallet);
             } else if(result.code === 301){
                 reply.edit('You do not currenlty have a bank account with us! Please do some grinding or have someone send you some money and we will open an account for you!');
             } else {
