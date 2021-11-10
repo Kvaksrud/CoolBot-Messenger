@@ -114,7 +114,7 @@ bot.on('messageCreate', async message => {
             || channel.id === process.env.DISCORD_CHANNEL_ID_DINO
             || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
             || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER)
-            && message.author.id !== process.env.DISCORD_BOT_MEMBER_ID
+            && message.author.bot === false
         ){
             message.author.send('Chatting in a bot controlled channel is disallowed.\rPlease use regular chat channels to communicate with other users.');
             message.delete();
