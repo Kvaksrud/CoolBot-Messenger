@@ -1,37 +1,50 @@
-require('dotenv').config(); // Include environment variables
-const lang = require('./../../lang/default.js'); // Config
+/**
+ * Coolbot Messenger - current
+ * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
+ */
 const backend = require('./../../library/backend.js'); // API / Database
 const messaging = require('./../../library/messaging.js');
 const ftp_commands = require('./../../library/ftp.js');
 const { debug } = require('./../../library/debug.js');
-
 const { MessageEmbed } = require('discord.js');
 
 async function handle(args,message){
-    let reply;
-    await message.reply('Please wait...').then((sentReply) => { reply = sentReply; });
+    /**
+     * Reply with normal message while working.
+     * These commands with FTP can take time.
+     */
+     let reply;
+     let replyEmbed = new MessageEmbed() // TODO: Move to messaging
+     .setColor('#0099ff')
+     .setTitle('Please wait')
+     .setDescription('Execution time for checking current dinosaur may take up to ``1 minute``.')
+     .setTimestamp()
+     await message.reply({ embeds: [replyEmbed] }).then((sentReply) => { reply = sentReply; });
 
-    let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err)=>{messaging.Error(message,err);reply.delete();return;});
-    if(registrationStatus === null) return; // Exit if error
-
-    if(registrationStatus.success !== true){
-        console.log(registrationStatus);
-        reply.edit('You are not registered');
-        return;
-    }
-
-    ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).then((result) => {
-        debug(result);
-        reply.delete();
-        messaging.CurrentDino(message,result.CharacterClass,result.Growth,(result.bGender === true ? 'Female' : 'Male'))
-        //reply.edit('```Class: '+result.CharacterClass+'\nGrowth: '+result.Growth+'\nGender: '+ (result.bGender === true ? 'Female' : 'Male') +'```');
-    }).catch((err) => {
-        if(err.code === 550){
-            reply.delete(); messaging.ErrorMessage(message,'No active dinosaur','We cannot find any records of a dinosaur on your Steam ID on our server.\rMake sure you safe-log when exiting the server.')
-        } else {
-            reply.delete(); messaging.Error(message,err);
-        }
-    });
+    /**
+     * Require user to be registered
+     * - Also fetches registration data like Steam ID
+     */
+     let registrationStatus = await backend.getRegistration(message.guild.id,message.member.id).catch((err)=>{reply.delete();messaging.Error(message,err);return;});
+     if(!registrationStatus) return;
+     debug(registrationStatus);
+     if(registrationStatus.success !== true){ reply.delete();messaging.ErrorMessage(message,'You are not registered','You have to register to be elegible for this service.'); return; }
+ 
+    /**
+     * Connect to FTP server and get current profile
+     */
+    const playerData = await ftp_commands.currentPlayerData(registrationStatus.data.item.steam_id).catch((err)=>{reply.delete();messaging.Error(message,err);return;});
+    if(!playerData) return;
+    debug(playerData);
+    reply.delete();
+    messaging.CurrentDino(message,playerData.CharacterClass,playerData.Growth,(playerData.bGender === true ? 'Female' : 'Male'))
     return;
 }
 

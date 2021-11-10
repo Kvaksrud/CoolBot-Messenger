@@ -1,15 +1,18 @@
-/*
- *
- *  BOT written by Patrick Kvaksrud (patrick@kvaksrud.no)
- *  https://github.com/Kvaksrud/CoolBot
- *  DOB: 2021-10-13
- *  Description: This bot was created to support the TCGC community with a fresh and uniqueue bot for supporting Discord and The Isle
- *  Licence: MIT
+/**
+ * Coolbot Messenger
  * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
  */
 
-require('dotenv').config(); // Include environment variables
 const { debug } = require('./library/debug.js');
+const fs = require('fs')
+const messaging = require('./library/messaging.js');
 
 // Discord
 const { Client, Intents, MessageAttachment, MessageEmbed, SystemChannelFlags } = require('discord.js');
@@ -18,6 +21,7 @@ const bot = new Client({ intents: [Intents.FLAGS.GUILDS,Intents.FLAGS.GUILD_MESS
 // Log ready state
 bot.on('ready', () => {
     console.log('Bot logged in to Discord')
+    bot.channels.cache.get(process.env.DISCORD_CHANNEL_ID_BOT_TALK).send('Hello! I\'m online again.')
 });
 
 /*
@@ -47,83 +51,36 @@ bot.on('messageCreate', async message => {
         const command = args.shift();
         debug([`New message in channel ${channel.name} on server ${guild.name} from ${member.user.username}`,command,args]);
 
-        // DINO CHANNEL
-        if(channel.id === process.env.DISCORD_DINO_CHANNEL_ID){
-            if(command === 'current'){
-                let definition = require('./commands/dino-requests/current.js') // TODO: Minimize even MORE!
-                await definition.handle(args,message);
-                return;
-            }
-            else if(command === 'inject'){
-                let definition = require('./commands/dino-requests/inject.js') // TODO: Minimize even MORE!
-                await definition.handle(args,message);
-                return;
-            }
-            else if(command === 'teleport'){
-                let definition = require('./commands/dino-requests/teleport.js') // TODO: Minimize even MORE!
-                await definition.handle(args,message);
-                return;
-            } else {
-                message.reply('Invalid command');
-                return;
-            }
-        }
+        // Dynamic command loading
+        let definition;
+        if(
+            channel.id === process.env.DISCORD_CHANNEL_ID_DINO
+            || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER
+            || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
+            || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
+        ){
+            let path;
+            if(command === 'bal' || command === 'balance') path = `./commands/${channel.name.toLowerCase()}/money.js` // Alias
+            else if(command === 'd' || command === 'dep') path = `./commands/${channel.name.toLowerCase()}/deposit.js` // Alias
+            else if(command === 'w' || command === 'with') path = `./commands/${channel.name.toLowerCase()}/withdraw.js` // Alias
+            else if(command === 'work') path = `./commands/${channel.name.toLowerCase()}/labor.js` // Alias
+            else if(command === 'transfer' || command === 'give') path = `./commands/${channel.name.toLowerCase()}/send.js` // Alias
+            else
+                path = `./commands/${channel.name.toLowerCase()}/${command}.js` // Dynamic path
 
-        // REGISTER
-        if(channel.id === process.env.DISCORD_REGISTER_CHANNEL_ID){
-            if (command === 'register') { // TODO: Minimize even MORE!
-                let definition = require('./commands/register.js')
-                await definition.handle(args,message);
-                return;
+            try {
+                if (fs.existsSync(path)) {
+                    let cmdDefinition = require(path);
+                    await cmdDefinition.handle(args,message);
+                } else {
+                    messaging.ErrorMessage(message,'Invalid Command','The command you specified does not exist.\rCheck pinned messages for command usage.');
+                }
+            } catch(err) {
+                debug(['Failure in command require and handle',err]);
+                messaging.Error(message,err);
             }
-    
-            message.reply('Invalid command');
             return;
         }
-
-
-        // BANK ACCOUNT
-        if(channel.id === process.env.DISCORD_BANKING_CHANNEL_ID){
-            if (command === 'money' || command === 'bal' || command === 'balance') { // TODO: Minimize even MORE!
-                let definition = require('./commands/money.js')
-                await definition.handle(args,message);
-                return;
-            }
-            if (command === 'deposit' || command === 'dep') { // TODO: Minimize even MORE!
-                let definition = require('./commands/deposit.js')
-                await definition.handle(args,message);
-                return;
-            }
-            if (command === 'withdraw' || command === 'with') { // TODO: Minimize even MORE!
-                let definition = require('./commands/withdraw.js')
-                await definition.handle(args,message);
-                return;
-            }
-            if (command === 'send') { // TODO: Minimize even MORE!
-                let definition = require('./commands/send.js')
-                await definition.handle(args,message);
-                return;
-            }
-
-            message.reply('Invalid command');
-            return;
-        }
-        
-
-        /**
-         * Labor
-         */
-         if(channel.id === process.env.DISCORD_LABOR_CHANNEL_ID){
-            if (command === 'labor') { // TODO: Minimize even MORE!
-                let definition = require('./commands/labor.js')
-                await definition.handle(args,message);
-                return;
-            }
-
-            message.reply('Invalid command');
-            return;
-         }
-
 
         /* dev commands */
         if(hasDiscordRole(message,'Developer') || hasDiscordRole(message,'Bot Developer')){
@@ -152,11 +109,11 @@ bot.on('messageCreate', async message => {
         // End prefix commands
     } else {
         if(
-            (channel.id === process.env.DISCORD_REGISTER_CHANNEL_ID
-            || channel.id === process.env.DISCORD_BANKING_CHANNEL_ID
-            || channel.id === process.env.DISCORD_DINO_CHANNEL_ID
-            || channel.id === process.env.DISCORD_LABOR_CHANNEL_ID
-            || channel.id === process.env.DISCORD_REGISTRATION_ROLE_ID)
+            (channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER
+            || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
+            || channel.id === process.env.DISCORD_CHANNEL_ID_DINO
+            || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
+            || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER)
             && message.author.id !== process.env.DISCORD_BOT_MEMBER_ID
         ){
             message.author.send('Chatting in a bot controlled channel is disallowed.\rPlease use regular chat channels to communicate with other users.');

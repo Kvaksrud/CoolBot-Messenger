@@ -1,10 +1,19 @@
-const config = require('../config.js'); // Config
+/**
+ * Coolbot Messenger
+ * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
+ */
 const ftp = require('ftp'); // FTP Client
-const fs = require('fs'); // File System Client
 
 function getCurrentPlayerConfig(SteamID){
     return new Promise((resolve, reject) => {
-        const playerFilePath = config.FTP.PLAYER_PROFILE_PATH + SteamID + '.json';
+        const playerFilePath = process.env.FTP_PLAYER_PROFILE_PATH + SteamID + '.json';
         console.log(playerFilePath);
 
         var c = new ftp();
@@ -65,7 +74,7 @@ function injectCurrentPlayerConfig(SteamID,Content){
 
         var c = new ftp();
         c.on('ready', function() {
-            c.put(data,config.FTP.PLAYER_PROFILE_PATH + SteamID + '.json', function(err) {
+            c.put(data,process.env.FTP_PLAYER_PROFILE_PATH + SteamID + '.json', function(err) {
                 if (err) {
                     console.log('inject ' + SteamID + ' failed');
                     reject(err);
