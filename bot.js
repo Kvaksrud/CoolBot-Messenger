@@ -1,26 +1,27 @@
-/*
- *
- *  BOT written by Patrick Kvaksrud (patrick@kvaksrud.no)
- *  https://github.com/Kvaksrud/CoolBot
- *  DOB: 2021-10-13
- *  Description: This bot was created to support the TCGC community with a fresh and uniqueue bot for supporting Discord and The Isle
- *  Licence: MIT
+/**
+ * Coolbot Messenger
  * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
  */
 
-/*
- * Config
- */
-const config = require('./config.js')
-require('dotenv').config(); // Include environment variables
+const { debug } = require('./library/debug.js');
+const fs = require('fs')
+const messaging = require('./library/messaging.js');
 
 // Discord
-const { Client, Intents, MessageAttachment, SystemChannelFlags } = require('discord.js');
+const { Client, Intents, MessageAttachment, MessageEmbed, SystemChannelFlags } = require('discord.js');
 const bot = new Client({ intents: [Intents.FLAGS.GUILDS,Intents.FLAGS.GUILD_MESSAGES] });
 
 // Log ready state
 bot.on('ready', () => {
-    console.log('bot logged in to Discord')
+    console.log('Bot logged in to Discord')
+    bot.channels.cache.get(process.env.DISCORD_CHANNEL_ID_BOT_TALK).send('Hello! I\'m online again.')
 });
 
 /*
@@ -46,81 +47,38 @@ bot.on('messageCreate', async message => {
             return;
         }
 
-        console.log(`New message in channel ${channel.name} on server ${guild.name} from ${member.user.username}`);
         const args = message.content.toLowerCase().slice(prefix.length).trim().split(/ +/);
         const command = args.shift();
-        console.log(command,args);
+        debug([`New message in channel ${channel.name} on server ${guild.name} from ${member.user.username}`,command,args]);
 
-        // DINO
-        if(command === 'dino'){
-            if(message.channel.name !== config.DISCORD.DINO_CHANNEL_NAME){
-                console.log('!dino was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/dino.js') // TODO: Minimize even MORE!
-            await definition.handle(args,message);
-            return;
-        }
+        // Dynamic command loading
+        let definition;
+        if(
+            channel.id === process.env.DISCORD_CHANNEL_ID_DINO
+            || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER
+            || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
+            || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
+        ){
+            let path;
+            if(command === 'bal' || command === 'balance') path = `./commands/${channel.name.toLowerCase()}/money.js` // Alias
+            else if(command === 'd' || command === 'dep') path = `./commands/${channel.name.toLowerCase()}/deposit.js` // Alias
+            else if(command === 'w' || command === 'with') path = `./commands/${channel.name.toLowerCase()}/withdraw.js` // Alias
+            else if(command === 'work') path = `./commands/${channel.name.toLowerCase()}/labor.js` // Alias
+            else if(command === 'transfer' || command === 'give') path = `./commands/${channel.name.toLowerCase()}/send.js` // Alias
+            else
+                path = `./commands/${channel.name.toLowerCase()}/${command}.js` // Dynamic path
 
-        // REGISTER
-        if (command === 'register') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.REGISTER_CHANNEL_NAME){
-                console.log('!register was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
+            try {
+                if (fs.existsSync(path)) {
+                    let cmdDefinition = require(path);
+                    await cmdDefinition.handle(args,message);
+                } else {
+                    messaging.ErrorMessage(message,'Invalid Command','The command you specified does not exist.\rCheck pinned messages for command usage.');
+                }
+            } catch(err) {
+                debug(['Failure in command require and handle',err]);
+                messaging.Error(message,err);
             }
-            let definition = require('./commands/register.js')
-            await definition.handle(args,message);
-            return;
-        }
-
-        // BANK ACCOUNT
-        if (command === 'money') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
-                console.log('!money was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/money.js')
-            await definition.handle(args,message);
-            return;
-        }
-        if (command === 'deposit' || command === 'dep') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
-                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/deposit.js')
-            await definition.handle(args,message);
-            return;
-        }
-        if (command === 'withdraw' || command === 'with') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
-                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/withdraw.js')
-            await definition.handle(args,message);
-            return;
-        }
-        if (command === 'send') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.BANKING_CHANNEL_NAME){
-                console.log('!send was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/send.js')
-            await definition.handle(args,message);
-            return;
-        }
-
-        /**
-         * Labor
-         */
-         if (command === 'labor') { // TODO: Minimize even MORE!
-            if(message.channel.name !== config.DISCORD.LABOR_CHANNEL_NAME){
-                console.log(command + ' was used in the wrong channel',message.channel.name,message.member.user.username,command,args);
-                return;
-            }
-            let definition = require('./commands/labor.js')
-            await definition.handle(args,message);
             return;
         }
 
@@ -129,7 +87,9 @@ bot.on('messageCreate', async message => {
             if (command === "me") {
                 console.log(message);
                 console.log(message.member);
-                message.reply(JSON.stringify(message.member));
+                //message.reply(JSON.stringify(message.member.roles));
+                roles = message.member.roles.cache.map((role) => role.toString());
+                console.log("json:",JSON.stringify(roles));
             }
 
             if (command === "ping") {
@@ -147,6 +107,18 @@ bot.on('messageCreate', async message => {
             }
         }
         // End prefix commands
+    } else {
+        if(
+            (channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER
+            || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
+            || channel.id === process.env.DISCORD_CHANNEL_ID_DINO
+            || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
+            || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER)
+            && message.author.bot === false
+        ){
+            message.author.send('Chatting in a bot controlled channel is disallowed.\rPlease use regular chat channels to communicate with other users.');
+            message.delete();
+        }
     }
 });
 

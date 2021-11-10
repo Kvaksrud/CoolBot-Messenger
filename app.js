@@ -1,5 +1,20 @@
 #!/usr/bin/env node
 
+/**
+ * Coolbot Messenger
+ * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
+ */
+
+// Load environment variables
+require('dotenv').config(); // Include environment variables
+
 // Run Discord Bot
 require('./bot.js');
 
