@@ -1,81 +1,25 @@
+/**
+ * Coolbot Messenger -> Coolbot Backend
+ * 
+ * AUTHOR
+ * Patrick Kvaksrud <patrick@kvaksrud.no>
+ * https://github.com/Kvaksrud/CoolBot-Messenger
+ * 
+ * DESCRIPTION
+ * This bot was originally made for the TCGC community
+ * under MIT licensing to allow re-use of code.
+ * 
+ * This file has all code for talking to the REST API
+ * of the CoolBot Backend system.
+ */
 let Client = require('node-rest-client').Client;
 let client = new Client();
+const { debug } = require('./debug.js');
 
 const headers = {
     'Authorization': 'Bearer ' + process.env.COOLBOT_BACKEND_API_TOKEN,
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-}
-
-/**
- * Character Sheet API - Injection/cache
- */
-client.registerMethod('characterSheetGet', process.env.COOLBOT_BACKEND_API_URL + '/CharacterSheet/${sheet_id}', 'GET')
-client.registerMethod('characterSheetStore', process.env.COOLBOT_BACKEND_API_URL + '/CharacterSheet', 'POST')
-async function getCharacterSheet(sheetId){
-    return new Promise((resolve, reject) => {
-        let args = {
-            path: {
-                'sheet_id': sheetId
-            },
-            headers: headers,
-        }
-
-        let request = client.methods.characterSheetGet(args, function (data, response) {
-            if(data.message === 'Server Error')
-                reject({
-                    "code": 500,
-                    "message": data.message
-                });
-            resolve(data);
-        })
-
-        request.on('error', function(err) {
-            console.log('Failed to get character sheet with id ' + sheetId);
-            console.log(err);
-            reject(err);
-        });
-    });
-}
-async function storeCharacterSheet(guildId,memberId,content,type = null){
-    return new Promise((resolve, reject) => {
-        let recordType;
-        switch(type) {
-            case ('injection'):
-                recordType = 'injection';
-                break;
-            default:
-                recordType = 'cache'
-        }
-        console.log('Storing record type: ' + recordType);
-
-        let args = {
-            data:  {
-                'member_id': memberId,
-                'content': content,
-            },
-            parameters: {
-                'guild_id': guildId,
-                'type': recordType,
-            },
-            headers: headers,
-        }
-
-        let request = client.methods.characterSheetStore(args, function (data, response) {
-            if(data.message === 'Server Error')
-                reject({
-                    "code": 500,
-                    "message": data.message
-                });
-            resolve(data);
-        })
-
-        request.on('error', function(err) {
-            console.log('Failed to store character sheet');
-            console.log(err);
-            reject(err);
-        });
-    });
 }
 
 /**
@@ -98,17 +42,19 @@ async function getRegistration(guildId,memberId){
         }
 
         let request = client.methods.registerGet(args, function (data, response) {
-            if(data.message === 'Server Error')
+            if(data.message === 'Server Error'){
+                debug(['Server Error',data]);
                 reject({
                     "code": 500,
                     "message": data.message
                 });
+            }
             resolve(data);
         })
 
         request.on('error', function(err) {
-            console.log('Failed to get registration for ' + memberId + ' in guild ' + guildId);
-            console.log(err);
+            debug('Failed to get registration (code '+err.code+') for ' + memberId + ' in guild ' + guildId);
+            console.error(err);
             reject(err);
         });
     })
@@ -299,10 +245,191 @@ async function doBankTransactionSearch(guildId,memberId,type,limit=25,timer=null
     })
 }
 
+// Labor
+client.registerMethod('doLabor', process.env.COOLBOT_BACKEND_API_URL + '/Labor', 'POST');
+async function doLabor(guildId,memberId){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': memberId.toString(),
+            },
+            parameters: {
+                'guild_id': guildId
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.doLabor(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do labor`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+
+// DinosaurRequest
+client.registerMethod('possibleInjections', process.env.COOLBOT_BACKEND_API_URL + '/DinosaurRequest/PossibleInjections', 'POST');
+async function possibleInjections(discord_roles){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'discord_roles': discord_roles,
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.possibleInjections(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do get possible injections`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+client.registerMethod('possibleTeleports', process.env.COOLBOT_BACKEND_API_URL + '/DinosaurRequest/PossibleTeleports', 'POST');
+async function possibleTeleports(discord_roles){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'discord_roles': discord_roles,
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.possibleTeleports(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do get possible locations`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+client.registerMethod('requestInjection', process.env.COOLBOT_BACKEND_API_URL + '/DinosaurRequest', 'POST');
+async function requestInjection(guild_id,member_id,discord_roles,dinosaur_code,dinosaur_gender,server_json){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': member_id,
+                'discord_roles': discord_roles,
+                'request_type': 'dinosaur',
+                'dinosaur_code': dinosaur_code,
+                'dinosaur_gender': dinosaur_gender,
+                'server_json': server_json,
+            },
+            parameters: {
+                'guild_id': guild_id
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.requestInjection(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do injection request`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+client.registerMethod('requestTeleport', process.env.COOLBOT_BACKEND_API_URL + '/DinosaurRequest', 'POST');
+async function requestTeleport(guild_id,member_id,discord_roles,teleport_code,server_json){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'member_id': member_id,
+                'discord_roles': discord_roles,
+                'request_type': 'teleport',
+                'teleport_code': teleport_code,
+                'server_json': server_json,
+            },
+            parameters: {
+                'guild_id': guild_id
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.requestTeleport(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do injection request`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+client.registerMethod('updateRequestInjection', process.env.COOLBOT_BACKEND_API_URL + '/DinosaurRequest/${request_id}', 'PUT');
+async function updateRequestInjection(request_id,success){
+    return new Promise((resolve, reject) => {
+        let args = {
+            data:  {
+                'status': success
+            },
+            path: {
+                'request_id': request_id
+            },
+            headers: headers,
+        }
+
+        let request = client.methods.updateRequestInjection(args, function (data, response) {
+            if(data.message === 'Server Error')
+                reject({
+                    "code": 500,
+                    "message": data.message
+                });
+            resolve(data);
+        })
+
+        request.on('error', function(err) {
+            console.log(`Failed to do injection request`);
+            console.log(err);
+            reject(err);
+        });
+    })
+}
+
 module.exports = {
     // Character Sheet
-    getCharacterSheet: async (sheetId) => { return await getCharacterSheet(sheetId) },
-    storeCharacterSheet: async (guildId,memberId,content,type = null) => { return await storeCharacterSheet(guildId,memberId,content,type) },
+    /*getCharacterSheet: async (sheetId) => { return await getCharacterSheet(sheetId) },
+    storeCharacterSheet: async (guildId,memberId,content,type = null) => { return await storeCharacterSheet(guildId,memberId,content,type) },*/
     
     // Registration
     getRegistration: async (guildId,memberId) => { return await getRegistration(guildId,memberId); },
@@ -316,4 +443,14 @@ module.exports = {
     doBankTransaction: async (guildId,memberId,type,target,amount,description,timer) => { return await doBankTransaction(guildId,memberId,type,target,amount,description,timer) },
     doBankTransactionSend: async (guildId,fromMemberId,toMemberId,amount) => { return await doBankTransactionSend(guildId,fromMemberId,toMemberId,amount) },
     doBankTransactionSearch: async (guildId,memberId,type,limit=25,timer=null) => { return await doBankTransactionSearch(guildId,memberId,type,limit,timer) },
+
+    // Labor
+    doLabor: async (guildId,memberId) => { return await doLabor(guildId,memberId) },
+
+    // DinosaurRequest
+    possibleInjections: async (discord_roles) => { return await possibleInjections(discord_roles) },
+    possibleTeleports: async (discord_roles) => { return await possibleTeleports(discord_roles) },
+    requestInjection: async (guild_id,member_id,discord_roles,dinosaur_code,dinosaur_gender,server_json) => {return await requestInjection(guild_id,member_id,discord_roles,dinosaur_code,dinosaur_gender,server_json)},
+    requestTeleport: async (guild_id,member_id,discord_roles,teleport_code,server_json) => {return await requestTeleport(guild_id,member_id,discord_roles,teleport_code,server_json)},
+    updateRequestInjection: async(request_id,status) => { return await updateRequestInjection(request_id,status) },
 }
