@@ -58,6 +58,7 @@ bot.on('messageCreate', async message => {
             || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER
             || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
             || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
+            || channel.id === process.env.DISCORD_CHANNEL_ID_CONTRIBUTORS
         ){
             let path;
             if(command === 'bal' || command === 'balance') path = `./commands/${channel.name.toLowerCase()}/money.js` // Alias
@@ -113,7 +114,7 @@ bot.on('messageCreate', async message => {
             || channel.id === process.env.DISCORD_CHANNEL_ID_BANKING
             || channel.id === process.env.DISCORD_CHANNEL_ID_DINO
             || channel.id === process.env.DISCORD_CHANNEL_ID_LABOR
-            || channel.id === process.env.DISCORD_CHANNEL_ID_REGISTER)
+            || channel.id === process.env.DISCORD_CHANNEL_ID_CONTRIBUTORS)
             && message.author.bot === false
         ){
             message.author.send('Chatting in a bot controlled channel is disallowed.\rPlease use regular chat channels to communicate with other users.');
