@@ -426,6 +426,40 @@ async function updateRequestInjection(request_id,success){
     })
 }
 
+/**
+ * Labor Suggest
+ */
+ client.registerMethod('laborSuggest', process.env.COOLBOT_BACKEND_API_URL + '/LaborReply', 'POST');
+ async function laborSuggest(guild_id,member_id,text_before,text_after,target){
+     return new Promise((resolve, reject) => {
+         let args = {
+             data:  {
+                 'member_id': member_id,
+                 'text_before': text_before,
+                 'text_after': text_after,
+                 'target': target
+             },
+             parameters: {
+                 'guild_id': guild_id
+             },
+             headers: headers,
+         }
+ 
+         let request = client.methods.laborSuggest(args, function (data, response) {
+             if(data.message === 'Server Error')
+                 reject({
+                     "code": 500,
+                     "message": data.message
+                 });
+             resolve(data);
+         })
+ 
+         request.on('error', function(err) {
+             reject(err);
+         });
+     })
+ }
+
 module.exports = {
     // Character Sheet
     /*getCharacterSheet: async (sheetId) => { return await getCharacterSheet(sheetId) },
@@ -453,4 +487,7 @@ module.exports = {
     requestInjection: async (guild_id,member_id,discord_roles,dinosaur_code,dinosaur_gender,server_json) => {return await requestInjection(guild_id,member_id,discord_roles,dinosaur_code,dinosaur_gender,server_json)},
     requestTeleport: async (guild_id,member_id,discord_roles,teleport_code,server_json) => {return await requestTeleport(guild_id,member_id,discord_roles,teleport_code,server_json)},
     updateRequestInjection: async(request_id,status) => { return await updateRequestInjection(request_id,status) },
+
+    // Labor suggestions
+    laborSuggest: async (guild_id,member_id,text_before,text_after,target) => {return await laborSuggest(guild_id,member_id,text_before,text_after,target)},
 }
