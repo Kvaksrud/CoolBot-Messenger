@@ -59,7 +59,7 @@ async function handle(args,message){
             messaging.ErrorMessage(message,'Invalid Command Usage','Either you do not have permission to inject the requested dinosaur,\ror the dinosaur requested is invalid.\r\rPlease use ``!inject help`` for usage instructions and a complete list of dinosaurs available to you.');
             return;
         }
-        let fields = "```Code - Name (Cost)";
+        let fields = "```Code - Cost";
         for (const [key, value] of Object.entries(possibleInjections.data)) {
             fields = fields + "\r" + key + " - " + value
             }
